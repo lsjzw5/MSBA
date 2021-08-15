@@ -1,0 +1,712 @@
+---
+title: "ML_exercise"
+author: "Louie Wang"
+date: "8/16/2021"
+output: pdf_document
+---
+
+# Visual story telling part 1: green buildings
+```{r visual_1, echo=FALSE, include=FALSE}
+library(ggplot2)
+greenbuilding = read.csv("greenbuildings.csv")
+greenbuilding$green_rating = as.factor(greenbuilding$green_rating)
+attach(greenbuilding)
+```
+First, from the stats guru's statements, besides the original assumptions he made (such as leaving out buildings that have <10% occupancy rate and using median instead of mean of the rent in calculation), we see that he also assumed the rent difference, $2.60 per sqft, to be uniformly distributed across all green and non-green buildings. Some of these assumptions seem to be flawed at first. So we'll conduct the analysis with some focus on this. 
+```{r out.width=c('50%', '50%'), fig.show='hold', echo=FALSE}
+#some exploratory analysis on Rent and leasing_rate, i.e., the occupancy rate
+print("Summary of rent of non-green buildings: ")
+summary(Rent[green_rating == 0])
+print("Summary of rent of green buildings: ")
+summary(Rent[green_rating == 1])
+
+ggplot(greenbuilding, aes(x = Rent)) + 
+  geom_histogram(binwidth = 1) +
+  geom_vline(xintercept = mean(Rent), linetype = "dashed", color = "red") + 
+  geom_vline(xintercept = median(Rent), linetype = "dashed", color = "blue") +
+  geom_text(mapping = aes(x = mean(Rent) + 10, y = 370, label = "mean")) +
+  geom_text(mapping = aes(x = median(Rent) + 10, y = 350, label = "median"))
+
+ggplot(greenbuilding, aes(x = leasing_rate)) + 
+  geom_histogram(binwidth = 1) + 
+  geom_vline(xintercept = 10, linetype = "dashed", size = 0.5) +
+  geom_text(aes(x = 10, y = 250, label = "10% occupancy rate", vjust = 0.5))
+```
+From this starting analysis, we see that the difference between mean and median of the rent is not very significant. And the removal of buildings with low occupancy rate seems reasonable as it looks like an outlier on the histogram. We'll then examine some relationships between rent and other predictors. 
+```{r out.width=c('50%', '50%'), fig.show='hold', echo=FALSE}
+#rent and cluster rent
+ggplot(data = greenbuilding, aes(x = cluster_rent, y = Rent, colour = green_rating)) + 
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE)
+
+#rent and size
+ggplot(data = greenbuilding, aes(x = size, y = Rent, colour = green_rating)) + 
+  geom_point() +
+  geom_smooth(method = lm, se = FALSE)
+
+#rent and age
+ggplot(data = greenbuilding, aes(x = age, y = Rent, colour = green_rating)) + 
+  geom_point()
+
+#rent and leasing rate (occupancy rate)
+ggplot(data = greenbuilding, aes(x = leasing_rate, y = Rent, colour = green_rating)) + 
+  geom_point()
+
+#occupancy rate and size
+ggplot(data = greenbuilding, aes(x = size, y = leasing_rate, colour = class_a)) +
+  geom_point()
+```
+
+Observations:  
+  * the average rent per sq.ft. per calender year in the building's local market is linearly related to its rent rate;  
+  * the size of the building also seems to be correlated with the rent rate, but based on our plot, the size is positively correlated with a non-green building but slightly negatively correlated with a green building;  
+  * the age or the occupancy rate of a building does not seem to have a strong correlation/impact on its rent;  
+  * most of the green buildings are younger than those that are non-green.  
+  
+Another thing I noticed is the building quality (class A or class B). Here I'm doing some EDA regarding the building quality. 
+```{r out.width=c('50%', '50%'), fig.show='hold', echo=FALSE}
+#class A buildings
+ggplot(data = greenbuilding, aes(x = size, y = Rent, color = class_a)) +
+  geom_point() +
+  geom_vline(xintercept = 250000, linetype = "dashed") +
+  geom_text(aes(x = 260000, y = 225, label = "250,000 sq.ft"))
+
+#green buildings and quality
+ggplot(greenbuilding, aes(x = class_a)) +
+  geom_bar(aes(fill = green_rating))
+```
+
+Observations:  
+  * higher quality buildings (class A) are generally having a larger size and 
+  * the proportion of green buildings is higher in class A buildings. 
+
+Based on the information above, we see that there are many factors that can affect the rent of a building, besides whether it is considered as "green" or not. The location of the building, the classification of the building, and the size of the building can all potentially affect the rent rate of a building.  
+Overall, green building is not the mainstream building type. And the difference of rent rate between a green and non-green buildings is not uniform. Additionally, there are some potential confounding variables that can affect the revenue generated from the building and the occupancy rate, so we cannot simply make the assumption the guru stated. 
+
+
+# Visual story telling part 2: flights at ABIA
+The first step includes some EDA on the dataset and fill in the missing values. Then I created two subsets (departure and arrival at AUS).  
+```{r visual_2, echo=FALSE, include=FALSE}
+df = read.csv('ABIA.csv')
+df[is.na(df)] = 0
+df = df[, -1]  #since all data are within year 2008
+df[, c('Month', 'DayofMonth', 'DayOfWeek', 'Cancelled', 'Diverted')] <- lapply(df[, c('Month', 'DayofMonth', 'DayOfWeek', 'Cancelled', 'Diverted')], as.factor)
+
+attach(df)
+```
+
+```{r out.width=c('50%', '50%'), fig.show='hold', echo=FALSE}
+ggplot(data = df, aes(x = DepDelay)) +
+  geom_histogram(binwidth = 10) +
+  ggtitle("Distribution of Departure Delay")
+
+ggplot(data = df, aes(x = ArrDelay)) +
+  geom_histogram(binwidth = 10) +
+  ggtitle("Distribution of Arrival Delay")
+
+ggplot(data = df, aes(x = ArrDelay, y = DepDelay, color = UniqueCarrier)) +
+  geom_point() +
+  ggtitle("Arrival and Departure Delay for each Carrier")
+
+ggplot(data = df, aes(x = AirTime, fill = UniqueCarrier)) +
+  geom_density() +
+  ggtitle("Density of AirTime by Airline Carriers")
+
+ggplot(data = df, aes(x = UniqueCarrier)) +
+  geom_bar() +
+  ggtitle("Airline carriers into and out from Austin")
+```
+
+The plots indicate that both arrival delay and departure delay are centered around 0, with some extreme outliers in both variables. Thus, the majority of flights were approximately on time.  
+Meanwhile, in the third plot, it seems that most of the airline carriers have a strong correlation between arrival and departure delay time, which makes sense because if the flight arrives late for x minutes, then it'll likely to departure x minutes late from the original time.  
+The fourth plot shows that some airlines have a very wide difference in the airtime of their flights. Some carriers may have many long distance flights (such as B6 and UA) while the other mainly conduct short-distance, regional flights (such as CO and MQ).  
+The fifth plot shows that at AUS, WN is the biggest airline carrier operating and NW has the fewest flights being scheduled.  
+  
+After the EDA of the data set, I narrow down the analysis on variables that may be related to the delays.  
+
+First, I'd like to see how often each delay type occured. 
+```{r out.width=c('50%', '50%'), fig.show='hold', echo=FALSE}
+delays = data.frame("Delay_Min" = c(sum(CarrierDelay), sum(WeatherDelay), sum(NASDelay), sum(SecurityDelay), sum(LateAircraftDelay)), 
+                    "Delay_Count" = c(sum(CarrierDelay > 0), sum(WeatherDelay > 0), sum(NASDelay > 0),sum(SecurityDelay > 0), sum(LateAircraftDelay > 0)))
+rownames(delays) = c("CarrierDelay", "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")
+
+ggplot(data = delays, aes(x = rownames(delays), y = Delay_Min)) +
+  geom_bar(stat = "identity") +
+  xlab("") + ylab("Total Delay Minutes")
+
+ggplot(data = delays, aes(x = rownames(delays), y = Delay_Count)) +
+  geom_bar(stat = "identity") +
+  xlab("") + ylab("Total Delay Counts")
+```
+These two graphs show the total time length and number of occurence of each delay type being recorded. The `LateAircraftDelay` has the longest total time length but the `NASDelay` is the most frequent type of delay.  
+
+Next, I developed some plots to find out the relationships among the delay types, time, frequency, and airline carrier. 
+```{r out.width=c('50%', '50%'), fig.show='hold', echo=FALSE}
+temp = df[,c("UniqueCarrier", "CarrierDelay", "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay")]
+delay.carrier.time = aggregate(temp[,-1], list(temp$UniqueCarrier), sum) 
+delay.carrier.count = aggregate(temp[,-1], list(temp$UniqueCarrier), function(c)sum(c!=0))
+names(delay.carrier.time)[names(delay.carrier.time) == "Group.1"] = "UniqueCarrier"
+names(delay.carrier.count)[names(delay.carrier.count) == "Group.1"] = "UniqueCarrier"
+
+C = delay.carrier.count[,c(1,2)]
+C$Type = replicate(length(C), "CarrierDelay")
+colnames(C)[2] = "Count"
+
+W = delay.carrier.count[,c(1,3)]
+W$Type = replicate(length(W), "WeatherDelay")
+colnames(W)[2] = "Count"
+
+N = delay.carrier.count[,c(1,4)]
+N$Type = replicate(length(N), "NASDelay")
+colnames(N)[2] = "Count"
+
+S = delay.carrier.count[,c(1,5)]
+S$Type = replicate(length(S), "SecurityDelay")
+colnames(S)[2] = "Count"
+
+L = delay.carrier.count[,c(1,6)]
+L$Type = replicate(length(L), "LateAircraftDelay")
+colnames(L)[2] = "Count"
+
+delay.carrier.count1 = rbind(C,W,N,S,L)
+
+#####################################################
+C1 = delay.carrier.time[,c(1,2)]
+C1$Type = replicate(length(C1), "CarrierDelay")
+colnames(C1)[2] = "Count"
+
+W1 = delay.carrier.time[,c(1,3)]
+W1$Type = replicate(length(W1), "WeatherDelay")
+colnames(W1)[2] = "Count"
+
+N1 = delay.carrier.time[,c(1,4)]
+N1$Type = replicate(length(N1), "NASDelay")
+colnames(N1)[2] = "Count"
+
+S1 = delay.carrier.time[,c(1,5)]
+S1$Type = replicate(length(S1), "SecurityDelay")
+colnames(S1)[2] = "Count"
+
+L1 = delay.carrier.time[,c(1,6)]
+L1$Type = replicate(length(L1), "LateAircraftDelay")
+colnames(L1)[2] = "Count"
+
+delay.carrier.time1 = rbind(C1,W1,N1,S1,L1)
+
+##############################################
+ggplot(delay.carrier.time1, aes(fill = Type, y = Count, x = UniqueCarrier)) +
+  geom_bar(stat = "identity") +
+  ylab("Delay Time in Minutes") + ggtitle("Delay Time Length for Each Carrier by Type")
+
+ggplot(delay.carrier.count1, aes(fill = Type, y = Count, x = UniqueCarrier)) +
+  geom_bar(stat = "identity") +
+  ylab("Delay Frequency") + ggtitle("Delay Frequency for Each Carrier by Type")
+```
+
+From the two plots above, we see that the proportion for the occurrence and time length of each delay type can be very different among all airline companies. For example, the top two types of delays for WN (Southwest) are `LateAircraftDelay` and `CarrierDelay`, while they are `NASDelay` and `CarrierDelay` for OH.  
+
+Overall, based on the analysis above, I'm surprised to find out that weather is not the leading factor that leads to a delayed flight, as I would thought in the past. For most of the airline carriers, their top delay factors are difference among each other, and there's no an apparent trend or pattern of such top delay type. 
+
+# Portfolio modeling
+ETFs I chose for this portfolio (with their returns since 2016):  
+* VCSH (Vanguard Short-Term Corporate Bond ETF)  
+* GOVT (iShares U.S. Treasury Bond ETF)  
+* UGA (United States Gasoline Fund LP)  
+* EFA (iShares MSCI EAFE ETF)
+* FXY (Invesco Currencyshares Japanese Yen Trust)  
+* KBE (SPDR S&P Bank ETF)
+```{r portfolio, echo=FALSE, include=FALSE}
+library(quantmod)
+library(mosaic)
+library(foreach)
+mystocks = c("VCSH","GOVT","UGA","EFA","FXY","KBE")
+myprices = getSymbols(mystocks, from = "2016-01-01")
+
+for(ticker in mystocks) {
+	expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+	eval(parse(text=expr))
+}
+
+all_returns = cbind(ClCl(VCSHa),ClCl(GOVTa),
+                    ClCl(UGAa),ClCl(EFAa),
+                    ClCl(FXYa),ClCl(KBEa))
+```
+
+A sample look for the ETFs in the portfolio. 
+```{r echo=FALSE}
+head(all_returns)
+```
+
+Then I removed the NA values in this portfolio and construct a pairplot for the performance between each ETF, followed by time series plots for each ETF on their returns since 2016. 
+
+```{r echo=FALSE}
+all_returns = as.matrix(na.omit(all_returns))
+pairs(all_returns)
+
+par(mfrow=c(2,1))
+plot(ClCl(VCSHa), type = "l")
+plot(ClCl(GOVTa), type = "l")
+plot(ClCl(UGAa), type = "l")
+plot(ClCl(EFAa), type = "l")
+plot(ClCl(FXYa), type = "l")
+plot(ClCl(KBEa), type = "l")
+
+initial_wealth = 100000
+```
+Next, I built 3 different portfolios and examine their corresponding characteristics.
+
+### First one:  
+SAFE (with 90% on GOVT since it won't default); followed with a few plots along with the VaR at 5% level. 
+
+```{r echo=FALSE, out.width=c('50%','50%')}
+set.seed(1234)
+sim1 = foreach(i = 1:5000, .combine = "rbind") %do% {
+  total_wealth = initial_wealth
+  weights = c(0.02, 0.9, 0.02, 0.02, 0.02, 0.02)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for (today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids = FALSE)
+    holdings = holdings + holdings * return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    
+    holdings = total_wealth * weights   #rebalanced each day
+  }
+  wealthtracker
+}
+
+hist(sim1[,n_days], 50, 
+     main = "Bootstraping Distribution, SAFE PORTFOLIO", 
+     xlab = "total wealth")
+
+hist(sim1[,n_days] - initial_wealth, breaks = 30, 
+     main = "Distribution of Profit/Loss, SAFE PORTFOLIO", 
+     xlab = "Profit (Loss)")
+
+VaR = quantile(sim1[,n_days]-initial_wealth, prob = 0.05)
+cat("\nVaR at 5% level is", VaR, "\n")
+cat("Average return after 20 days is $", mean(sim1[,n_days]),"\n")
+```
+
+### Second one: 
+AGRESSIVE (80% on UGA and KBE, 20% on the rest)
+
+```{r echo=FALSE, out.width=c('50%','50%')}
+set.seed(12345)
+sim2 = foreach(i = 1:5000, .combine = "rbind") %do% {
+  total_wealth = initial_wealth
+  weights = c(0.05, 0.05, 0.4, 0.05, 0.05, 0.4)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for (today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids = FALSE)
+    holdings = holdings + holdings * return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    
+    holdings = total_wealth * weights   #rebalanced each day
+  }
+  wealthtracker
+}
+
+hist(sim2[,n_days], 50, 
+     main = "Bootstraping Distribution, AGRESSIVE PORTFOLIO", 
+     xlab = "total wealth")
+
+hist(sim2[,n_days] - initial_wealth, breaks = 30, 
+     main = "Distribution of Profit/Loss, AGRESSIVE PORTFOLIO", 
+     xlab = "Profit (Loss)")
+
+VaR = quantile(sim2[,n_days]-initial_wealth, prob = 0.05)
+cat("\nVaR at 5% level is", VaR, "\n")
+cat("Average return after 20 days is $", mean(sim2[,n_days]),"\n")
+```
+
+### Third one: 
+EVEN WEIGHTED (about 66.7% for every ETF)
+
+```{r echo=FALSE, out.width=c('50%','50%')}
+set.seed(123456)
+w = 1/6
+sim3 = foreach(i = 1:5000, .combine = "rbind") %do% {
+  total_wealth = initial_wealth
+  weights = c(w, w, w, w, w, w)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for (today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids = FALSE)
+    holdings = holdings + holdings * return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    
+    holdings = total_wealth * weights   #rebalanced each day
+  }
+  wealthtracker
+}
+
+hist(sim3[,n_days], 50, 
+     main = "Bootstraping Distribution, EVEN PORTFORLIO", 
+     xlab = "total wealth")
+
+hist(sim3[,n_days] - initial_wealth, breaks = 30, 
+     main = "Distribution of Profit/Loss, EVEN PORTFORLIO", 
+     xlab = "Profit (Loss)")
+
+VaR = quantile(sim3[,n_days]-initial_wealth, prob = 0.05)
+cat("\nVaR at 5% level is", VaR, "\n")
+cat("Average return after 20 days is $", mean(sim3[,n_days]),"\n")
+```
+
+Based on the three scenarios, it is not hard to see that the safe portfolio has the smallest VaR (in absolute value), meaning that it is least likely to be exposed to a big loss of investment. But at the same time, the average return of the safe portfolio is the lowest. The aggressive portfolio is just the opposite. It has the largest value at risk while also gained the biggest return. 
+
+# Market segmentation
+This project could be considered as a clustering problem. I first conducted some EDA analysis on the data set. First of all, I eliminated four categories (`spam`, `adult`, `uncategorized`, and `chatter`) because these are not very helpful for our market segmentation. 
+
+```{r mkt_seg, echo=FALSE, include=FALSE}
+library(ggplot2)
+library(corrplot)
+library(foreach)
+library(mosaic)
+mkt = read.csv("social_marketing.csv")
+dim(mkt)
+mkt = mkt[, -which(names(mkt) %in% c('spam', 'adult', 'uncategorized', 'chatter'))]
+```
+
+```{r echo=FALSE}
+correlation = round(cor(mkt[,-1]),3)
+corrplot(correlation, tl.cex = 0.5)
+```
+
+From this correlation plot for all variables, it is noticeable that many variables (interest) are not strongly correlated with each other, with some exceptions. Some correlations are pretty self-explanatory, such as `personal_fitness` and `health_nutrition`, `online_gaming` and `college_uni`.  
+I did KMeans clustering on this data set. The first step involves finding the best K number of clusters. I plotted the elbow plot in order to visually see which K to choose.  
+
+```{r echo=FALSE}
+mkt.scaled = mkt[,-1]
+mkt.scaled = scale(mkt.scaled, center = T, scale = T)
+mu = attr(mkt.scaled, "scaled:center")
+sigma = attr(mkt.scaled,"scaled:scale")
+```
+
+```{r echo=FALSE}
+#choose K
+set.seed(1234567)
+k_grid = seq(2,32,by = 1)
+SSE_grid = foreach(k = k_grid, .combine = "c") %do% {
+  cluster_k = kmeans(mkt.scaled, k)
+  cluster_k$tot.withinss
+}
+
+plot(k_grid, SSE_grid, type = "b", xlab = "K", ylab = "SSE", main = "Elbow Plot for Different K")
+```
+
+As shown in the plot, it is probably the best option to choose K to be within the range of 10 to 15. I chose K=10 here. Then I plotted the detailed characteristics for each cluster so that I can gain information regarding the marketing segmentation for each cluster of users.  
+
+```{r echo=FALSE}
+clust1 = kmeans(mkt.scaled, 10, nstart = 25)
+mkt.clust1 = as.data.frame(cbind(clust1$center[1,]*sigma + mu, clust1$center[2,]*sigma + mu,
+                            clust1$center[3,]*sigma + mu, clust1$center[4,]*sigma + mu,
+                            clust1$center[5,]*sigma + mu, clust1$center[6,]*sigma + mu,
+                            clust1$center[7,]*sigma + mu, clust1$center[8,]*sigma + mu,
+                            clust1$center[9,]*sigma + mu, clust1$center[10,]*sigma + mu))
+
+names(mkt.clust1) = c('C1','C2','C3','C4','C5','C6','C7','C8','C9','C10')
+mkt.clust1$interest = row.names(mkt.clust1)
+```
+
+```{r out.width=c('50%', '50%'), fig.show='hold',echo = FALSE}
+ggplot(mkt.clust1, aes(x = interest , y = C1)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 1 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C2)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 2 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C3)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 3 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C4)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 4 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C5)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 5 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C6)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 6 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C7)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 7 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C8)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 8 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C9)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 9 Information") + xlab("Interest") + ylab("Center Value")
+
+ggplot(mkt.clust1, aes(x = interest , y = C10)) +
+  geom_bar(stat="identity") + 
+  theme(axis.text.x = element_text(angle = -75, hjust=.05)) + 
+  ggtitle("Cluster 10 Information") + xlab("Interest") + ylab("Center Value")
+```
+
+It is not hard to draw some marketing segmentation conclusions from the clustering plots. For all 10 clustered groups of users, there are certain categories/interests that are predominant. And a rough segmentation based on this analysis (by their most predominant interest(s)):  
+* cluster 1: news, politics, automotive, and sports_fandom  
+* cluster 2: tv_film, art, photo_sharing, and college_uni   
+* cluster 3: health_nutrition, personal_fitness  
+* cluster 4: photo_sharing and shoping  
+* cluster 5: online_gaming and college_uni  
+* cluster 6: politics and travel  
+* cluster 7: sports_fandom, religion, food, and parenting  
+* cluster 8: dating  
+* cluster 9: photo_sharing, current_events, health_nutrition, and travel  
+* cluster 10: cooking, photo_sharing, fashion, and beauty.  
+These 10 clusters show a very clear picture of what each group of users are like. For example, NutrientH20 can target most of their dating-related resources to cluster 8 users; users in cluster 5 are probably young college students who love gaming; and cluster 3 people are likely to be those who hit the gym 24-7 and care about their body shape very much. Above are just some examples of how we may better understand the users' habits and interests. With KMeans and also other clustering methods, NutrientH20 can significantly improve their understanding of its users and thus optimize the usage of their resources.  
+
+# Author attribution
+
+```{r author_attribution, echo=FALSE, include=FALSE}
+library(tm) 
+library(tidyverse)
+library(slam)
+library(proxy)
+readerPlain = function(fname) {
+  readPlain(elem = list(content = readLines(fname)), id = fname, language = 'en') 
+}
+
+#read in all folders
+folders = Sys.glob("ReutersC50/C50train/*")
+
+#making the training set
+comb_art = c()
+labels = c()
+for (folder in folders) { 
+  author = substring(folder, first = 21)
+  article = Sys.glob(paste0(folder,'/*.txt'))
+  comb_art = append(comb_art,article)
+  labels = append(labels,rep(author,length(article)))
+}
+comb = lapply(comb_art, readerPlain) 
+names(comb) = comb_art
+names(comb) = sub('.txt', '', names(comb))
+
+doc_raw = Corpus(VectorSource(comb))
+
+my_documents = doc_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace)) %>%
+  tm_map(content_transformer(removeWords), stopwords("en"))
+
+DTM_train = DocumentTermMatrix(my_documents)
+DTM_tr = removeSparseTerms(DTM_train, 0.99)
+tfidf_train = weightTfIdf(DTM_tr)
+train_mat = as.matrix(tfidf_train)
+```
+
+* Summary for the training set: 
+
+```{r echo=FALSE}
+tfidf_train
+```
+
+```{r echo=FALSE, include=FALSE}
+#making the test set
+folders2 = Sys.glob("ReutersC50/C50test/*")
+comb_art2 = c()
+labels2 = c()
+for (folder in folders2) { 
+  author2 = substring(folder, first = 20)
+  article2 = Sys.glob(paste0(folder,'/*.txt'))
+  comb_art2 = append(comb_art2,article2)
+  labels2 = append(labels2,rep(author2,length(article2)))
+}
+comb2 = lapply(comb_art2, readerPlain) 
+names(comb2) = comb_art2
+names(comb2) = sub('.txt', '', names(comb2))
+
+doc_raw2 = Corpus(VectorSource(comb2))
+
+my_documents2 = doc_raw2 %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace)) %>%
+  tm_map(content_transformer(removeWords), stopwords("en"))
+
+DTM_test = DocumentTermMatrix(my_documents2, list(dictionary = colnames(DTM_tr)))
+tfidf_test = weightTfIdf(DTM_test)
+test_mat = as.matrix(tfidf_test)
+```
+
+* Summary for the testing set:  
+
+```{r echo=FALSE}
+tfidf_test
+```
+
+Dimensionality Reduction:  
+```{r echo=FALSE}
+train_mat = train_mat[,-which(colSums(train_mat) == 0)]
+test_mat = test_mat[,-which(colSums(test_mat) == 0)]
+
+train_mat = train_mat[,intersect(colnames(test_mat),colnames(train_mat))]
+test_mat = test_mat[,intersect(colnames(test_mat),colnames(train_mat))]
+pca_train = prcomp(train_mat, scale = T)
+```
+
+```{r echo=FALSE}
+pr.var = pca_train$sdev^2
+pr.pve = pr.var/sum(pr.var)
+
+#which(cumsum(pr.pve) <= 0.5009 & cumsum(pr.pve) >= 0.4999)
+#which(cumsum(pr.pve) <= 0.7509 & cumsum(pr.pve) >= 0.7499)
+a = round(cumsum(pr.pve)[341], 4)
+b = round(cumsum(pr.pve)[729], 4)
+
+plot(cumsum(pr.pve), type = "b", xlab = "Principle Component", ylab = "Total Variance Explained")
+abline(h = 0.5, v = 341, lty = "dashed")
+abline(h = 0.75, v = 729, lty = "dashed", col = "red")
+text(x = 180, y = 0.52, labels = paste("PC341", a), cex = 0.7)
+text(x = 565, y = 0.77, labels = paste("PC729",b), cex = 0.7, col = "red")
+```
+
+From the PCA plot, at PC729, about 75% of the variance can be explained. Thus, I used the first 729 PCs to help construct the training and testing data sets for model building.  I chose two models to test, KNN and RandomForest.  
+```{r echo=FALSE}
+train_class = data.frame(pca_train$x[,1:729])
+train_class["author"] = labels
+train_load = pca_train$rotation[,1:729]
+
+test_class = as.data.frame(scale(test_mat) %*% train_load)
+test_class["author"] = labels2
+```
+
+KNN model (chose K to be 1, 5, 50, and 100):  
+```{r echo=FALSE, include=FALSE}
+library(class)
+```
+
+```{r}
+train.X = subset(train_class, select = -730)
+test.X = subset(test_class, select = -730)
+train.y = as.factor(train_class$author)
+test.y = as.factor(test_class$author)
+
+set.seed(123)
+K = c(1,5,50,100)
+for (i in K) {
+  knn.pred = knn(train.X, test.X, train.y, k = i)
+  mse = mean(knn.pred == test.y)
+  cat("The accuracy of this KNN model (K =", i, ") is", mse, ";\n")
+}
+```
+
+Decision Tree and Random Forest model: 
+```{r echo=FALSE, include=FALSE}
+library(randomForest)
+```
+
+```{r}
+set.seed(89011)
+rf.author = randomForest(as.factor(author)~., train_class, mtry = 729/3, importance = T)
+
+yhat.rf = predict(rf.author, newdata = test_class)
+acc.rf = mean(yhat.rf == as.factor(test_class$author))
+cat("The accuracy of this RandomForest model is", acc.rf, "\n")
+```
+
+Based on the two models I built, the random forest model seems to be a better model with a 56.4% accuracy. Among the three K Nearest Neighbors models, choosing K = 1 will return the best accuracy, but still significantly lower than the random forest model.  
+
+# Association rule mining
+
+```{r association_rule, echo=FALSE, include=FALSE}
+library(tidyverse)
+library(arules)
+library(arulesViz)
+```
+
+Data format: (first step is to transform the text strings into )
+```{r echo=FALSE}
+grocery = scan(file = "groceries.txt", what = "", sep = "\n")
+head(grocery)
+```
+
+Since each row already represents a basket, I first split each row by the items in it and cast the variable as a special arules "transaction" class. 
+
+```{r echo=FALSE}
+grocery = strsplit(grocery, split = ",")
+groc_trans = as(grocery, "transactions")
+summary(groc_trans)
+```
+Observations: there are 9835 rows of transactions with the most frequent bought item being `whole milk`. On average, about more than half of the transactions have fewer than 4 items per basket.  
+Next I plotted the top 20 most frequent items bought.  
+```{r echo=FALSE}
+itemFrequencyPlot(groc_trans, topN = 20, cex = 0.8)
+```
+
+I first set the length to be at most 5, with `minsup`=0.005 and `minconf` = 0.1.  
+From the plot, I understand that there are over 1500 rules associated with this setup. So I tried to narrow it down and further explore. 
+
+```{r echo=FALSE, include=FALSE}
+grocrules = apriori(groc_trans, parameter = list(support = 0.005, confidence = 0.1, maxlen = 5))
+```
+
+```{r echo=FALSE, out.width=c('50%', '50%')}
+plot(grocrules, jitter=0)
+plot(grocrules, measure = c("support", "lift"), shading = "confidence",jitter=0)
+plot(grocrules, method = "two-key plot",jitter=0)
+```
+
+I also noticed that there are very few rules with length = 1. So the next step is to set the maximum length to be 2 to narrow down the analysis. And I further checked the subsets of the rule by selecting different `minsup` and `minconf`. 
+
+```{r echo=FALSE, include=FALSE}
+grocrule_2 = apriori(groc_trans, parameter = list(support = 0.005, confidence = 0.1, maxlen = 2))
+```
+
+* `minsup` > 0.005, `minconf` > 0.15, plotting only the first 100 rules. 
+```{r echo=FALSE, out.width=c('50%','50%')}
+sub1 = subset(grocrule_2, subset=confidence > 0.15 & support > 0.005)
+plot(sub1,jitter=0)
+plot(head(sub1, 100, by = "lift"), method='graph')
+```
+* `minsup` > 0.003, `minconf` > 0.2
+```{r echo=FALSE, out.width=c('50%','50%')}
+sub2 = subset(grocrule_2, subset=confidence > 0.2 & support > 0.003)
+plot(sub2, jitter=0)
+plot(head(sub2, 100, by = "lift"), method='graph')
+```
+
+* `minsup` > 0.002, `minconf` > 0.3, plotting only the first 100 rules
+```{r echo=FALSE, out.width=c('50%','50%')}
+sub3 = subset(grocrule_2, subset=confidence > 0.3 & support > 0.002)
+plot(sub3,jitter=0)
+plot(head(sub3, 100, by = "lift"), method='graph')
+```
+
+* `minsup` > 0.001, `minconf` > 0.4
+```{r echo=FALSE, out.width=c('50%','50%')}
+sub4 = subset(grocrule_2, subset=confidence > 0.4 & support > 0.001)
+plot(sub4,jitter=0)
+plot(sub4, method='graph')
+```
+Observation and Conclusion: 1. whole milk is apparently the most bought item; 2. people who bought herbs are very likely to also buy root vegetables; 3. there are a few items that when people bought them, they were also likely to buy both whole milk and other vegetables. 

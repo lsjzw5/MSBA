@@ -1,7 +1,6 @@
 ---
 title: "ML_exercise"
 author: "Louie Wang"
-date: "8/16/2021"
 output: pdf_document
 ---
 

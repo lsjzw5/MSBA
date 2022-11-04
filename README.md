@@ -1,5 +1,3 @@
-# MSBA_Intro_to_Machine_Learning
+# University of Texas at Austin, MSBA Program
 
-  This repo is for the exercises completed for course STA380, Introduction to Machine Learning (Summer 2021)  
-  
-  Program: Master of Science in Business Analytics, University of Texas at Austin
+  This repo is for all school related projects
